@@ -1,6 +1,9 @@
 import React, { useRef, useState, useEffect } from 'react';
 import Webcam from 'react-webcam';
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000';
+const WS_BASE_URL = import.meta.env.VITE_WS_BASE_URL || 'ws://127.0.0.1:8000';
+
 // --- CONFIGURATION ---
 const VIDEO_IDS = {
   'Squats': 'MVMMA05cx_U',
@@ -263,7 +266,7 @@ const AuthPage = ({ type, onSwitch, onSuccess, onBack }) => {
   const handleSubmit = async () => {
     setError('');
     try {
-      const res = await fetch(`http://127.0.0.1:8000/${type}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(formData) });
+      const res = await fetch(`${API_BASE_URL}/${type}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(formData) });
       const data = await res.json();
       if (res.ok) { type === 'signup' ? (alert("Account created! Login now."), onSwitch()) : onSuccess(data.name); } else setError(data.detail || "Error");
     } catch { setError("Server error"); }
@@ -303,7 +306,7 @@ const TrainerSession = ({ initialExercise, level, onEnd, currentUser, setGlobalC
   const handleStopSession = async () => {
     if (reps > 0) {
       try {
-        await fetch('http://127.0.0.1:8000/save_session', {
+        await fetch(`${API_BASE_URL}/save_session`, {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ username: currentUser, exercise: `${initialExercise} (${level})`, reps: reps, calories: parseFloat(calories), duration: formatTime(timer) })
         });
@@ -313,7 +316,7 @@ const TrainerSession = ({ initialExercise, level, onEnd, currentUser, setGlobalC
   };
 
   useEffect(() => {
-    const fetchHistory = async () => { try { const res = await fetch(`http://127.0.0.1:8000/get_history?username=${currentUser}`); setHistory(await res.json()); } catch (e) { console.error(e); } };
+    const fetchHistory = async () => { try { const res = await fetch(`${API_BASE_URL}/get_history?username=${currentUser}`); setHistory(await res.json()); } catch (e) { console.error(e); } };
     fetchHistory();
   }, [currentUser]);
 
@@ -323,7 +326,7 @@ const TrainerSession = ({ initialExercise, level, onEnd, currentUser, setGlobalC
   const speak = (msg) => { if (!window.speechSynthesis || lastSpokenRef.current === msg) return; window.speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(msg); u.rate = 1.0; u.pitch = 1.1; window.speechSynthesis.speak(u); lastSpokenRef.current = msg; };
 
   useEffect(() => {
-    const s = new WebSocket("ws://127.0.0.1:8000/ws");
+    const s = new WebSocket(`${WS_BASE_URL}/ws`);
     s.onopen = () => { s.send(JSON.stringify({ exercise: initialExercise })); speak(`Starting ${level} ${initialExercise}.`); };
     s.onmessage = (e) => {
       const d = JSON.parse(e.data);
@@ -413,7 +416,7 @@ const AIAssistant = ({ context }) => {
     setLoading(true);
 
     try {
-      const res = await fetch('http://127.0.0.1:8000/ask_ai', {
+      const res = await fetch(`${API_BASE_URL}/ask_ai`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: userMsg, context: context })
