@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>PhysioAI Test Run</title>
+    <style>
+        body { font-family: sans-serif; text-align: center; background: #222; color: #fff; }
+        #status { font-size: 20px; margin: 10px; color: yellow; }
+        video { border: 2px solid #fff; width: 60%; }
+    </style>
+</head>
+<body>
+
+    <h1>PhysioAI Connection Test</h1>
+    <p id="status">Connecting to Server...</p>
+
+    <video id="videoElement" autoplay playsinline muted></video>
+    <canvas id="canvasElement" style="display:none;"></canvas>
+
+    <div id="feedbackBox" style="font-size: 24px; color: #0f0; margin-top: 20px;">
+        Waiting for AI response...
+    </div>
+
+    <script>
+        const video = document.getElementById('videoElement');
+        const canvas = document.getElementById('canvasElement');
+        const ctx = canvas.getContext('2d');
+        const statusText = document.getElementById('status');
+        const feedbackBox = document.getElementById('feedbackBox');
+
+        // 1. WebSocket Connection (Server se jodna)
+        const ws = new WebSocket("ws://127.0.0.1:8000/ws");
+
+        ws.onopen = () => {
+            statusText.innerText = "✅ Connected to Server!";
+            startCamera();
+        };
+
+        ws.onmessage = (event) => {
+            // Server se jo jawab aaya (JSON) use padhna
+            const data = JSON.parse(event.data);
+            feedbackBox.innerText = `AI Status: ${data.feedback}`;
+
+            // Agar landmarks aaye hain toh console mein dikhao
+            if(data.landmarks) {
+                console.log("Landmarks received:", data.landmarks[0]);
+            }
+        };
+
+        function startCamera() {
+            navigator.mediaDevices.getUserMedia({ video: true })
+                .then((stream) => {
+                    video.srcObject = stream;
+                    // Har 100ms mein frame bhejo (FPS control)
+                    setInterval(sendFrame, 100);
+                })
+                .catch((err) => {
+                    statusText.innerText = "❌ Camera Error: " + err;
+                });
+        }
+
+        function sendFrame() {
+            if (ws.readyState === WebSocket.OPEN) {
+                // Video frame ko canvas par draw karo
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+                // Canvas ko Blob (Image Data) mein badlo aur server ko bhejo
+                canvas.toBlob((blob) => {
+                    ws.send(blob);
+                }, 'image/jpeg', 0.8);
+            }
+        }
+    </script>
+</body>
+</html>

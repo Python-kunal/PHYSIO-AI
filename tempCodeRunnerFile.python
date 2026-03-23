@@ -1,0 +1,7 @@
+print("Hello World!")
+
+
+
+import math
+
+dir(math)
